@@ -1,0 +1,100 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          pip install mlflow boto3
+
+      - name: Fetch Production Model from MLflow
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          # Python script inline to fetch model artifacts
+          python3 -c "
+          import mlflow
+          from mlflow.tracking import MlflowClient
+          import os
+          
+          client = MlflowClient()
+          model_name = 'retail-fraud-model'
+          
+          # Get latest version in 'Production'
+          # Note: In a real scenario, we might iterate or use specific version logic
+          versions = client.get_latest_versions(model_name, stages=['Production'])
+          if not versions:
+              raise Exception('No production model found')
+              
+          latest_version = versions[0]
+          run_id = latest_version.run_id
+          artifact_uri = latest_version.source
+          
+          print(f'Downloading model from {artifact_uri}...')
+          mlflow.artifacts.download_artifacts(run_id=run_id, dst_path='app/')
+          "
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, Tag, and Push Image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: retail-fraud-detection
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG app/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Deploy to AWS Lambda
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: retail-fraud-detection
+          IMAGE_TAG: ${{ github.sha }}
+          LAMBDA_FUNCTION_NAME: retail-fraud-service
+          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          
+          # Check if Lambda function exists
+          if aws lambda get-function --function-name $LAMBDA_FUNCTION_NAME > /dev/null 2>&1; then
+            echo "Function exists. Updating image..."
+            aws lambda update-function-code \
+              --function-name $LAMBDA_FUNCTION_NAME \
+              --image-uri $IMAGE_URI
+          else
+            echo "Function does not exist. Creating..."
+            aws lambda create-function \
+              --function-name $LAMBDA_FUNCTION_NAME \
+              --package-type Image \
+              --code ImageUri=$IMAGE_URI \
+              --role $LAMBDA_ROLE_ARN \
+              --timeout 30 \
+              --memory-size 1024
+          fi
+          
+          # Wait for update to complete
+          aws lambda wait function-updated --function-name $LAMBDA_FUNCTION_NAME
+          echo "Lambda Deployment Complete!"
