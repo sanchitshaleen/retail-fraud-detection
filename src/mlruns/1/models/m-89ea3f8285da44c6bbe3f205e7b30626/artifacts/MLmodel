@@ -1,0 +1,22 @@
+artifact_path: /Users/neetikasaxena/Documents/sanchit/sample_code/retail_fraud/src/mlruns/1/models/m-89ea3f8285da44c6bbe3f205e7b30626/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.9.7
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+mlflow_version: 3.1.4
+model_id: m-89ea3f8285da44c6bbe3f205e7b30626
+model_size_bytes: 838866
+model_uuid: m-89ea3f8285da44c6bbe3f205e7b30626
+prompts: null
+run_id: fed9afc0ed41408aaa1a438d96520516
+utc_time_created: '2026-02-20 18:43:42.981087'

@@ -21,32 +21,18 @@ jobs:
         run: |
           pip install mlflow boto3
 
-      - name: Fetch Production Model from MLflow
+      - name: Fetch Production Models from S3
         env:
-          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          S3_BUCKET: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}
         run: |
-          # Python script inline to fetch model artifacts
-          python3 -c "
-          import mlflow
-          from mlflow.tracking import MlflowClient
-          import os
-          
-          client = MlflowClient()
-          model_name = 'retail-fraud-model'
-          
-          # Get latest version in 'Production'
-          # Note: In a real scenario, we might iterate or use specific version logic
-          versions = client.get_latest_versions(model_name, stages=['Production'])
-          if not versions:
-              raise Exception('No production model found')
-              
-          latest_version = versions[0]
-          run_id = latest_version.run_id
-          artifact_uri = latest_version.source
-          
-          print(f'Downloading model from {artifact_uri}...')
-          mlflow.artifacts.download_artifacts(run_id=run_id, dst_path='app/')
-          "
+          echo "Downloading models from S3..."
+          # MLFLOW_ARTIFACT_ROOT has format s3://bucket-name, so we can use it directly
+          aws s3 cp $S3_BUCKET/artifacts/model_xgb.joblib app/model_xgb.joblib
+          aws s3 cp $S3_BUCKET/artifacts/model_iso.joblib app/model_iso.joblib
+          aws s3 cp $S3_BUCKET/artifacts/cashier_stats.joblib app/cashier_stats.joblib
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1

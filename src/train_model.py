@@ -141,7 +141,7 @@ import mlflow.sklearn
 import mlflow.xgboost
 
 # --- 5. MLflow Logging & Registration ---
-mlflow.set_tracking_uri("http://localhost:5000") # Default, override with env var in prod
+mlflow.set_tracking_uri("sqlite:///mlruns.db") # Using local SQLite for Free Tier simulation
 mlflow.set_experiment("retail-fraud-experiment")
 
 with mlflow.start_run():
@@ -185,4 +185,9 @@ with mlflow.start_run():
     joblib.dump(xgb_model, '../app/model_xgb.joblib')
     joblib.dump(iso_model, '../app/model_iso.joblib')
 
-print("Training Run Complete. Models logged to MLflow.")
+    # Upload models to S3 for GitHub Actions to retrieve
+    print("Uploading models to S3 Artifact Store...")
+    s3.upload_file('../app/model_xgb.joblib', BUCKET_NAME, 'artifacts/model_xgb.joblib')
+    s3.upload_file('../app/model_iso.joblib', BUCKET_NAME, 'artifacts/model_iso.joblib')
+
+print("Training Run Complete. Models logged to MLflow and uploaded to S3.")

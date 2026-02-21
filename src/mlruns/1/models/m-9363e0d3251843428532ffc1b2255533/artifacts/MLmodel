@@ -1,0 +1,22 @@
+artifact_path: /Users/neetikasaxena/Documents/sanchit/sample_code/retail_fraud/src/mlruns/1/models/m-9363e0d3251843428532ffc1b2255533/artifacts
+flavors:
+  python_function:
+    data: model.xgb
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.9.7
+  xgboost:
+    code: null
+    data: model.xgb
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: xgb
+    xgb_version: 2.1.4
+mlflow_version: 3.1.4
+model_id: m-9363e0d3251843428532ffc1b2255533
+model_size_bytes: 90400
+model_uuid: m-9363e0d3251843428532ffc1b2255533
+prompts: null
+run_id: e6dd3d951e544edcb2d41d1b63e84cc1
+utc_time_created: '2026-02-20 18:58:42.296254'
